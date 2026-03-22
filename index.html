@@ -67,66 +67,34 @@
 <!-- ══════════════════════════════════════════════════════════════ -->
 <!-- PAGE: Camera                                                   -->
 <!-- ══════════════════════════════════════════════════════════════ -->
-<section id="page-camera" class="page camera-page" aria-label="Camera">
-  <div class="camera-viewfinder">
-    <video id="camera-video" autoplay playsinline muted></video>
-
-    <div class="camera-navbar">
-      <button id="btn-back-camera" class="icon-btn" aria-label="Back">
-        <!-- chevron-left -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-    </div>
-
-    <div id="camera-tip" class="camera-tip">
-      Use natural light and avoid flash for best results
-    </div>
-
-    <!-- Spinner shown while camera initialises -->
-    <div id="camera-spinner" class="spinner-overlay hidden">
-      <div class="spinner"></div>
-      <span>Starting camera…</span>
-    </div>
-
-    <!-- Error state -->
-    <div id="camera-error" class="spinner-overlay hidden" style="background:rgba(0,0,0,.8); gap:20px; padding:32px; text-align:center;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <p id="camera-error-msg" style="max-width:240px; line-height:1.5;">Camera access was denied. Please allow camera access in your browser settings and try again.</p>
-      <button id="btn-camera-error-back" class="btn btn--secondary" style="width:auto; padding:12px 24px;">Go Back</button>
-    </div>
-  </div>
-
-  <div class="camera-controls">
-    <button id="btn-shutter" class="shutter-btn" aria-label="Take photo"></button>
-  </div>
-
-  <!-- iOS fallback: file input triggers native camera, no repeated permission prompt -->
-  <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display:none" />
-
-  <div id="ios-camera-ui" class="ios-camera-ui" hidden>
-    <button id="btn-back-camera-ios" class="icon-btn ios-back-btn" aria-label="Back">
+<section id="page-camera" class="page" aria-label="Camera">
+  <div class="navbar">
+    <button id="btn-back-camera" class="icon-btn" aria-label="Back">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
-    <div class="ios-camera-hero">
+    <span class="navbar__title">Take Photo</span>
+    <div style="width:40px"></div>
+  </div>
+
+  <!-- Hidden file input — capture="environment" opens rear camera on mobile -->
+  <input type="file" id="camera-file-input" accept="image/*" capture="environment" style="display:none" />
+
+  <div class="page-content">
+    <div class="home-hero" style="gap:24px;">
       <div class="home-hero__icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
           <circle cx="12" cy="13" r="4"/>
         </svg>
       </div>
-      <p>Tap below to open your camera.<br>Use natural light for best results.</p>
+      <p style="color:var(--grey-600); font-size:0.95rem; line-height:1.6;">
+        Use natural light and avoid flash for best results.
+      </p>
     </div>
-    <label for="camera-file-input" class="btn btn--primary" style="margin:0 20px 40px;">
-      Open Camera
-    </label>
+
+    <label for="camera-file-input" class="btn btn--primary">Open Camera</label>
   </div>
 </section>
 

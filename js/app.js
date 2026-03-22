@@ -1,5 +1,4 @@
 import { loadSettings, saveSettings } from './settings.js';
-import { startCamera, stopCamera, captureFrame, isMobile } from './camera.js';
 import {
   loadOpenCV,
   processImage,
@@ -22,9 +21,6 @@ let currentPage = null;
 function showPage(id) {
   if (!PAGES.includes(id)) id = 'home';
 
-  // Camera teardown when leaving camera page
-  if (currentPage === 'camera' && id !== 'camera') stopCamera();
-
   PAGES.forEach((p) => {
     const el = document.getElementById(`page-${p}`);
     if (!el) return;
@@ -35,8 +31,6 @@ function showPage(id) {
   currentPage = id;
   window.location.hash = id;
 
-  // Lifecycle hooks
-  if (id === 'camera')   initCameraPage();
   if (id === 'process')  initProcessPage();
   if (id === 'result')   triggerSubmission();
   if (id === 'settings') initSettingsPage();
@@ -54,7 +48,6 @@ function handleHash() {
   });
   currentPage = hash;
   if (hash === 'settings') initSettingsPage();
-  if (hash === 'camera')   initCameraPage();
 }
 
 window.addEventListener('hashchange', handleHash);
@@ -85,75 +78,16 @@ function setupHomePage() {
 }
 
 // ── Camera page ──────────────────────────────────────────────────
-async function initCameraPage() {
-  const iosUI     = document.getElementById('ios-camera-ui');
-  const viewfinder = document.getElementById('camera-viewfinder');
-  const controls  = document.querySelector('.camera-controls');
-
-  if (isMobile()) {
-    // Touch devices: use file-input native camera (no repeated permission prompts)
-    viewfinder.style.display = 'none';
-    controls.style.display   = 'none';
-    iosUI.hidden = false;
-    return;
-  }
-
-  // Desktop: live viewfinder path
-  iosUI.hidden = true;
-  viewfinder.style.display = '';
-  controls.style.display   = '';
-
-  const spinner  = document.getElementById('camera-spinner');
-  const errorBox = document.getElementById('camera-error');
-  const errorMsg = document.getElementById('camera-error-msg');
-  const tip      = document.getElementById('camera-tip');
-
-  spinner.classList.remove('hidden');
-  errorBox.classList.add('hidden');
-  tip.classList.remove('camera-tip--hidden');
-
-  try {
-    await startCamera();
-    spinner.classList.add('hidden');
-    setTimeout(() => tip.classList.add('camera-tip--hidden'), 4000);
-  } catch (err) {
-    spinner.classList.add('hidden');
-    errorBox.classList.remove('hidden');
-
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      errorMsg.textContent =
-        'Camera access was denied. Please allow camera access in your browser settings and try again.';
-    } else if (err.name === 'NotFoundError') {
-      errorMsg.textContent = 'No camera found on this device.';
-    } else {
-      errorMsg.textContent = `Camera error: ${err.message}`;
-    }
-  }
-}
-
 function setupCameraPage() {
-  document.getElementById('btn-back-camera').addEventListener('click', () => showPage('home'));
-  document.getElementById('btn-back-camera-ios').addEventListener('click', () => showPage('home'));
-  document.getElementById('btn-camera-error-back').addEventListener('click', () => showPage('home'));
+  document.getElementById('btn-back-camera')
+    .addEventListener('click', () => showPage('home'));
 
-  document.getElementById('btn-shutter').addEventListener('click', async () => {
-    const v = document.getElementById('camera-video');
-    if (!v.videoWidth) {
-      showToast('Camera not ready — go back and try again');
-      return;
-    }
-    const blob = await captureFrame();
-    if (!blob) return;
-    window.appState.capturedBlob = blob;
-    showPage('process');
-  });
-
-  // iOS: file input → native camera → blob → process page
+  // File input: on mobile opens native camera; on desktop opens file picker
   document.getElementById('camera-file-input').addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     window.appState.capturedBlob = file;
-    e.target.value = ''; // reset so retaking the same shot still fires change
+    e.target.value = ''; // reset so retaking fires change event again
     showPage('process');
   });
 }
@@ -191,7 +125,6 @@ async function initProcessPage() {
   } catch (err) {
     console.error('processImage failed', err);
     showToast('Processing failed — please adjust corners manually');
-    // Fall back: show raw image, full-image corner handles
     const img = new Image();
     const url = URL.createObjectURL(blob);
     img.onload = () => {
@@ -200,10 +133,10 @@ async function initProcessPage() {
       previewCanvas.getContext('2d').drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
       setupCornerHandles(container, previewCanvas, [
-        { x: 0,                    y: 0                     },
-        { x: img.naturalWidth,     y: 0                     },
-        { x: img.naturalWidth,     y: img.naturalHeight     },
-        { x: 0,                    y: img.naturalHeight     },
+        { x: 0,                y: 0                },
+        { x: img.naturalWidth, y: 0                },
+        { x: img.naturalWidth, y: img.naturalHeight },
+        { x: 0,                y: img.naturalHeight },
       ]);
     };
     img.src = url;
@@ -212,7 +145,6 @@ async function initProcessPage() {
 
   window.appState.processedBlob = result.processedBlob;
 
-  // Show processed image on preview canvas
   const img = new Image();
   const url = URL.createObjectURL(result.processedBlob);
   img.onload = () => {
@@ -223,15 +155,11 @@ async function initProcessPage() {
   };
   img.src = url;
 
-  // Place corner handles over the *original* blob's detected corners
-  // (scaled to the preview canvas display size)
   if (result.detectedCorners) {
-    // Re-draw original to a temp canvas to get dimensions
     const tmpImg = new Image();
     const tmpUrl = URL.createObjectURL(blob);
     tmpImg.onload = () => {
       URL.revokeObjectURL(tmpUrl);
-      // Map corners from original image coords → preview canvas display coords
       setupCornerHandles(container, previewCanvas, result.detectedCorners.map((c) => ({
         x: (c.x / tmpImg.naturalWidth)  * previewCanvas.width,
         y: (c.y / tmpImg.naturalHeight) * previewCanvas.height,
@@ -246,9 +174,8 @@ async function initProcessPage() {
 }
 
 function setupProcessPage() {
-  document.getElementById('btn-back-process').addEventListener('click', () => {
-    showPage('camera');
-  });
+  document.getElementById('btn-back-process')
+    .addEventListener('click', () => showPage('camera'));
 
   document.getElementById('btn-apply-corners').addEventListener('click', async () => {
     const blob = window.appState.capturedBlob;
@@ -272,7 +199,7 @@ function setupProcessPage() {
       };
       img.src = url;
       showToast('Corners applied');
-    } catch (err) {
+    } catch {
       showToast('Failed to apply corners');
     }
   });
@@ -298,12 +225,10 @@ function setupSettingsPage() {
   document.getElementById('btn-back-settings')
     .addEventListener('click', () => showPage('home'));
 
-  // API key show/hide toggle
   document.getElementById('btn-toggle-key').addEventListener('click', () => {
     const input = document.getElementById('input-api-key');
     const isHidden = input.type === 'password';
     input.type = isHidden ? 'text' : 'password';
-    // Swap icon between eye and eye-off
     document.getElementById('eye-icon').innerHTML = isHidden
       ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
@@ -323,26 +248,22 @@ function setupSettingsPage() {
 
 // ── Result page ──────────────────────────────────────────────────
 function showResult({ success, title, message }) {
-  const icon      = document.getElementById('result-icon');
-  const titleEl   = document.getElementById('result-title');
-  const msgEl     = document.getElementById('result-message');
-  const retryBtn  = document.getElementById('btn-retry-submit');
+  const icon     = document.getElementById('result-icon');
+  const titleEl  = document.getElementById('result-title');
+  const msgEl    = document.getElementById('result-message');
+  const retryBtn = document.getElementById('btn-retry-submit');
 
-  const successSVG = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
-         stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>`;
-  const errorSVG = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"
-         stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="15" y1="9" x2="9" y2="15"/>
-      <line x1="9" y1="9" x2="15" y2="15"/>
-    </svg>`;
+  const successSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
+       stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+    <polyline points="20 6 9 17 4 12"/></svg>`;
+  const errorSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"
+       stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="15" y1="9" x2="9" y2="15"/>
+    <line x1="9" y1="9" x2="15" y2="15"/></svg>`;
 
-  icon.className = `result-icon result-icon--${success ? 'success' : 'error'}`;
-  icon.innerHTML = success ? successSVG : errorSVG;
+  icon.className      = `result-icon result-icon--${success ? 'success' : 'error'}`;
+  icon.innerHTML      = success ? successSVG : errorSVG;
   titleEl.textContent = title;
   msgEl.textContent   = message;
   retryBtn.hidden     = success;
@@ -350,11 +271,8 @@ function showResult({ success, title, message }) {
 
 async function triggerSubmission() {
   if (!navigator.onLine) {
-    showResult({
-      success: false,
-      title: 'You\'re Offline',
-      message: 'Please reconnect to the internet and try again.',
-    });
+    showResult({ success: false, title: 'You\'re Offline',
+      message: 'Please reconnect to the internet and try again.' });
     return;
   }
 
@@ -368,27 +286,17 @@ async function triggerSubmission() {
   try {
     const result = await submitExpense(blob, settings);
     spinner.classList.add('hidden');
-
     if (result.ok) {
-      showResult({
-        success: true,
-        title: 'Expense Submitted!',
-        message: result.message || 'Your receipt has been sent to n8n successfully.',
-      });
+      showResult({ success: true, title: 'Expense Submitted!',
+        message: result.message || 'Your receipt has been sent to n8n successfully.' });
     } else {
-      showResult({
-        success: false,
-        title: `Submission Failed (${result.status})`,
-        message: result.message || 'The server returned an error. Please try again.',
-      });
+      showResult({ success: false, title: `Submission Failed (${result.status})`,
+        message: result.message || 'The server returned an error. Please try again.' });
     }
   } catch (err) {
     spinner.classList.add('hidden');
-    showResult({
-      success: false,
-      title: 'Network Error',
-      message: err.message || 'Could not reach the webhook. Check your URL and connection.',
-    });
+    showResult({ success: false, title: 'Network Error',
+      message: err.message || 'Could not reach the webhook. Check your URL and connection.' });
   }
 }
 
@@ -398,7 +306,6 @@ function setupResultPage() {
     window.appState.processedBlob = null;
     showPage('home');
   });
-
   document.getElementById('btn-retry-submit').addEventListener('click', triggerSubmission);
 }
 
@@ -417,8 +324,7 @@ window.showToast = showToast;
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('/sw.js').then(() => {
-    // Auto-reload once when a new service worker takes over,
-    // so users always run the latest JS without a manual refresh.
+    // Auto-reload when a new SW takes over so users always run fresh JS
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       window.location.reload();
     });
@@ -428,9 +334,7 @@ function registerSW() {
 // ── Offline banner ───────────────────────────────────────────────
 function setupOfflineBanner() {
   const banner = document.getElementById('offline-banner');
-  function update() {
-    banner.classList.toggle('visible', !navigator.onLine);
-  }
+  function update() { banner.classList.toggle('visible', !navigator.onLine); }
   window.addEventListener('online',  update);
   window.addEventListener('offline', update);
   update();
