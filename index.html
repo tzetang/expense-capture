@@ -15,6 +15,10 @@
   <meta name="apple-mobile-web-app-title" content="Expenses" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
+  <meta name="color-scheme" content="light" />
+  <!-- Prevent iOS double-tap zoom while keeping pinch-zoom -->
+  <meta name="format-detection" content="telephone=no" />
+
   <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
@@ -118,7 +122,7 @@
   </div>
 
   <!-- OpenCV loading overlay -->
-  <div id="opencv-spinner" class="spinner-overlay" style="position:fixed; background:rgba(0,0,0,.7);">
+  <div id="opencv-spinner" class="spinner-overlay hidden" style="position:fixed; background:rgba(0,0,0,.7);">
     <div class="spinner"></div>
     <span>Loading image processor…</span>
   </div>

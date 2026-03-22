@@ -144,16 +144,16 @@ async function initProcessPage() {
   const { debugMode } = loadSettings();
 
   debugSection.hidden = !debugMode;
-  spinner.style.display = 'flex';
+  spinner.classList.remove('hidden');
 
   try {
     await loadOpenCV();
   } catch {
-    spinner.style.display = 'none';
+    spinner.classList.add('hidden');
     showToast('Failed to load image processor — using manual corners');
   }
 
-  spinner.style.display = 'none';
+  spinner.classList.add('hidden');
 
   const blob = window.appState.capturedBlob;
   if (!blob) { showPage('camera'); return; }
