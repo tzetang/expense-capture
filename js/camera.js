@@ -1,3 +1,13 @@
+/**
+ * Returns true on iPhone, iPad, or iPadOS (desktop Safari with touch).
+ * Used to branch away from getUserMedia (which prompts every session on iOS)
+ * to a <input type="file" capture> approach instead.
+ */
+export function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 let stream = null;
 
 const video = () => document.getElementById('camera-video');

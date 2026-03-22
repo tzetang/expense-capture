@@ -352,6 +352,38 @@ html, body {
 }
 .camera-navbar .icon-btn { color: var(--white); }
 
+/* ── iOS camera fallback UI ──────────────────────────────────── */
+.ios-camera-ui {
+  position: absolute;
+  inset: 0;
+  background: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  z-index: 20;
+}
+.ios-camera-ui[hidden] { display: none; }
+.ios-back-btn {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  left: 12px;
+  color: var(--white);
+  z-index: 1;
+}
+.ios-camera-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px 32px;
+  text-align: center;
+  color: var(--white);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
 /* ── Process page ────────────────────────────────────────────── */
 .process-page { background: var(--grey-50); }
 .canvas-container {

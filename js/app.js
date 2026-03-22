@@ -1,5 +1,5 @@
 import { loadSettings, saveSettings } from './settings.js';
-import { startCamera, stopCamera, captureFrame } from './camera.js';
+import { startCamera, stopCamera, captureFrame, isIOS } from './camera.js';
 import {
   loadOpenCV,
   processImage,
@@ -86,12 +86,28 @@ function setupHomePage() {
 
 // ── Camera page ──────────────────────────────────────────────────
 async function initCameraPage() {
-  const spinner   = document.getElementById('camera-spinner');
-  const errorBox  = document.getElementById('camera-error');
-  const errorMsg  = document.getElementById('camera-error-msg');
-  const tip       = document.getElementById('camera-tip');
+  const iosUI     = document.getElementById('ios-camera-ui');
+  const viewfinder = document.getElementById('camera-viewfinder');
+  const controls  = document.querySelector('.camera-controls');
 
-  // Reset UI
+  if (isIOS()) {
+    // Show the tap-to-shoot UI; hide the getUserMedia viewfinder
+    viewfinder.style.display = 'none';
+    controls.style.display   = 'none';
+    iosUI.hidden = false;
+    return;
+  }
+
+  // Non-iOS: live viewfinder path
+  iosUI.hidden = true;
+  viewfinder.style.display = '';
+  controls.style.display   = '';
+
+  const spinner  = document.getElementById('camera-spinner');
+  const errorBox = document.getElementById('camera-error');
+  const errorMsg = document.getElementById('camera-error-msg');
+  const tip      = document.getElementById('camera-tip');
+
   spinner.classList.remove('hidden');
   errorBox.classList.add('hidden');
   tip.classList.remove('camera-tip--hidden');
@@ -99,8 +115,6 @@ async function initCameraPage() {
   try {
     await startCamera();
     spinner.classList.add('hidden');
-
-    // Fade out tip after 4 s
     setTimeout(() => tip.classList.add('camera-tip--hidden'), 4000);
   } catch (err) {
     spinner.classList.add('hidden');
@@ -118,18 +132,23 @@ async function initCameraPage() {
 }
 
 function setupCameraPage() {
-  document.getElementById('btn-back-camera').addEventListener('click', () => {
-    showPage('home');
-  });
-
-  document.getElementById('btn-camera-error-back').addEventListener('click', () => {
-    showPage('home');
-  });
+  document.getElementById('btn-back-camera').addEventListener('click', () => showPage('home'));
+  document.getElementById('btn-back-camera-ios').addEventListener('click', () => showPage('home'));
+  document.getElementById('btn-camera-error-back').addEventListener('click', () => showPage('home'));
 
   document.getElementById('btn-shutter').addEventListener('click', async () => {
     const blob = await captureFrame();
     if (!blob) return;
     window.appState.capturedBlob = blob;
+    showPage('process');
+  });
+
+  // iOS: file input → native camera → blob → process page
+  document.getElementById('camera-file-input').addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    window.appState.capturedBlob = file;
+    e.target.value = ''; // reset so retaking the same shot still fires change
     showPage('process');
   });
 }
