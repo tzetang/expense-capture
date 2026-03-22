@@ -1,4 +1,5 @@
 import { loadSettings, saveSettings } from './settings.js';
+import { startCamera, stopCamera, captureFrame } from './camera.js';
 
 // ── App state ────────────────────────────────────────────────────
 window.appState = {
@@ -12,6 +13,10 @@ let currentPage = null;
 
 function showPage(id) {
   if (!PAGES.includes(id)) id = 'home';
+
+  // Camera teardown when leaving camera page
+  if (currentPage === 'camera' && id !== 'camera') stopCamera();
+
   PAGES.forEach((p) => {
     const el = document.getElementById(`page-${p}`);
     if (!el) return;
@@ -23,13 +28,13 @@ function showPage(id) {
   window.location.hash = id;
 
   // Lifecycle hooks
+  if (id === 'camera')   initCameraPage();
   if (id === 'settings') initSettingsPage();
 }
 
 // ── Hash router ──────────────────────────────────────────────────
 function handleHash() {
   const hash = window.location.hash.replace('#', '') || 'home';
-  // We only navigate via showPage(), but handle direct URL loads/back-button
   if (!PAGES.includes(hash)) return showPage('home');
   PAGES.forEach((p) => {
     const el = document.getElementById(`page-${p}`);
@@ -39,15 +44,16 @@ function handleHash() {
   });
   currentPage = hash;
   if (hash === 'settings') initSettingsPage();
+  if (hash === 'camera')   initCameraPage();
 }
 
 window.addEventListener('hashchange', handleHash);
 
 // ── Home page ────────────────────────────────────────────────────
 function setupHomePage() {
-  const scanBtn = document.getElementById('btn-scan');
+  const scanBtn     = document.getElementById('btn-scan');
   const alertBanner = document.getElementById('home-alert');
-  const alertLink = document.getElementById('home-alert-link');
+  const alertLink   = document.getElementById('home-alert-link');
 
   scanBtn.addEventListener('click', () => {
     const { webhookUrl } = loadSettings();
@@ -66,6 +72,56 @@ function setupHomePage() {
 
   document.getElementById('btn-settings-home')
     .addEventListener('click', () => showPage('settings'));
+}
+
+// ── Camera page ──────────────────────────────────────────────────
+async function initCameraPage() {
+  const spinner   = document.getElementById('camera-spinner');
+  const errorBox  = document.getElementById('camera-error');
+  const errorMsg  = document.getElementById('camera-error-msg');
+  const tip       = document.getElementById('camera-tip');
+
+  // Reset UI
+  spinner.classList.remove('hidden');
+  errorBox.classList.add('hidden');
+  tip.classList.remove('camera-tip--hidden');
+
+  try {
+    await startCamera();
+    spinner.classList.add('hidden');
+
+    // Fade out tip after 4 s
+    setTimeout(() => tip.classList.add('camera-tip--hidden'), 4000);
+  } catch (err) {
+    spinner.classList.add('hidden');
+    errorBox.classList.remove('hidden');
+
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      errorMsg.textContent =
+        'Camera access was denied. Please allow camera access in your browser settings and try again.';
+    } else if (err.name === 'NotFoundError') {
+      errorMsg.textContent = 'No camera found on this device.';
+    } else {
+      errorMsg.textContent = `Camera error: ${err.message}`;
+    }
+  }
+}
+
+function setupCameraPage() {
+  document.getElementById('btn-back-camera').addEventListener('click', () => {
+    showPage('home');
+  });
+
+  document.getElementById('btn-camera-error-back').addEventListener('click', () => {
+    showPage('home');
+  });
+
+  document.getElementById('btn-shutter').addEventListener('click', async () => {
+    const blob = await captureFrame();
+    if (!blob) return;
+    window.appState.capturedBlob = blob;
+    showPage('process');
+  });
 }
 
 // ── Settings page ────────────────────────────────────────────────
@@ -87,6 +143,15 @@ function setupSettingsPage() {
       debugMode:  document.getElementById('toggle-debug').checked,
     });
     showToast('Settings saved');
+  });
+}
+
+// ── Result page ──────────────────────────────────────────────────
+function setupResultPage() {
+  document.getElementById('btn-scan-another').addEventListener('click', () => {
+    window.appState.capturedBlob  = null;
+    window.appState.processedBlob = null;
+    showPage('home');
   });
 }
 
@@ -124,6 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
   registerSW();
   setupOfflineBanner();
   setupHomePage();
+  setupCameraPage();
   setupSettingsPage();
+  setupResultPage();
   handleHash();
 });
