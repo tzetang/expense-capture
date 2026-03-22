@@ -1,5 +1,12 @@
 import { loadSettings, saveSettings } from './settings.js';
 import { startCamera, stopCamera, captureFrame } from './camera.js';
+import {
+  loadOpenCV,
+  processImage,
+  reprocessWithCorners,
+  setupCornerHandles,
+  getHandleCorners,
+} from './processor.js';
 
 // ── App state ────────────────────────────────────────────────────
 window.appState = {
@@ -29,6 +36,7 @@ function showPage(id) {
 
   // Lifecycle hooks
   if (id === 'camera')   initCameraPage();
+  if (id === 'process')  initProcessPage();
   if (id === 'settings') initSettingsPage();
 }
 
@@ -124,6 +132,134 @@ function setupCameraPage() {
   });
 }
 
+// ── Process page ─────────────────────────────────────────────────
+async function initProcessPage() {
+  const spinner       = document.getElementById('opencv-spinner');
+  const previewCanvas = document.getElementById('canvas-preview');
+  const container     = document.getElementById('process-canvas-container');
+  const debugSection  = document.getElementById('debug-section');
+  const debugPreviews = document.getElementById('debug-previews');
+  const { debugMode } = loadSettings();
+
+  debugSection.hidden = !debugMode;
+  spinner.style.display = 'flex';
+
+  try {
+    await loadOpenCV();
+  } catch {
+    spinner.style.display = 'none';
+    showToast('Failed to load image processor — using manual corners');
+  }
+
+  spinner.style.display = 'none';
+
+  const blob = window.appState.capturedBlob;
+  if (!blob) { showPage('camera'); return; }
+
+  let result;
+  try {
+    result = await processImage(blob, {
+      debugMode,
+      debugContainer: debugMode ? debugPreviews : null,
+    });
+  } catch (err) {
+    console.error('processImage failed', err);
+    showToast('Processing failed — please adjust corners manually');
+    // Fall back: show raw image, full-image corner handles
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      previewCanvas.width  = img.naturalWidth;
+      previewCanvas.height = img.naturalHeight;
+      previewCanvas.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      setupCornerHandles(container, previewCanvas, [
+        { x: 0,                    y: 0                     },
+        { x: img.naturalWidth,     y: 0                     },
+        { x: img.naturalWidth,     y: img.naturalHeight     },
+        { x: 0,                    y: img.naturalHeight     },
+      ]);
+    };
+    img.src = url;
+    return;
+  }
+
+  window.appState.processedBlob = result.processedBlob;
+
+  // Show processed image on preview canvas
+  const img = new Image();
+  const url = URL.createObjectURL(result.processedBlob);
+  img.onload = () => {
+    previewCanvas.width  = img.naturalWidth;
+    previewCanvas.height = img.naturalHeight;
+    previewCanvas.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+
+  // Place corner handles over the *original* blob's detected corners
+  // (scaled to the preview canvas display size)
+  if (result.detectedCorners) {
+    // Re-draw original to a temp canvas to get dimensions
+    const tmpImg = new Image();
+    const tmpUrl = URL.createObjectURL(blob);
+    tmpImg.onload = () => {
+      URL.revokeObjectURL(tmpUrl);
+      // Map corners from original image coords → preview canvas display coords
+      setupCornerHandles(container, previewCanvas, result.detectedCorners.map((c) => ({
+        x: (c.x / tmpImg.naturalWidth)  * previewCanvas.width,
+        y: (c.y / tmpImg.naturalHeight) * previewCanvas.height,
+      })));
+    };
+    tmpImg.src = tmpUrl;
+  }
+
+  if (!result.autoDetected) {
+    showToast('Receipt outline not detected — adjust corners manually');
+  }
+}
+
+function setupProcessPage() {
+  document.getElementById('btn-back-process').addEventListener('click', () => {
+    showPage('camera');
+  });
+
+  document.getElementById('btn-apply-corners').addEventListener('click', async () => {
+    const blob = window.appState.capturedBlob;
+    if (!blob) return;
+    const { debugMode } = loadSettings();
+    const corners = getHandleCorners();
+    try {
+      const result = await reprocessWithCorners(blob, corners, {
+        debugMode,
+        debugContainer: debugMode ? document.getElementById('debug-previews') : null,
+      });
+      window.appState.processedBlob = result.processedBlob;
+      const previewCanvas = document.getElementById('canvas-preview');
+      const img = new Image();
+      const url = URL.createObjectURL(result.processedBlob);
+      img.onload = () => {
+        previewCanvas.width  = img.naturalWidth;
+        previewCanvas.height = img.naturalHeight;
+        previewCanvas.getContext('2d').drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+      showToast('Corners applied');
+    } catch (err) {
+      showToast('Failed to apply corners');
+    }
+  });
+
+  document.getElementById('btn-confirm-process').addEventListener('click', () => {
+    if (!window.appState.processedBlob) {
+      showToast('No processed image — please wait or retake');
+      return;
+    }
+    showPage('result');
+  });
+}
+
 // ── Settings page ────────────────────────────────────────────────
 function initSettingsPage() {
   const s = loadSettings();
@@ -203,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupOfflineBanner();
   setupHomePage();
   setupCameraPage();
+  setupProcessPage();
   setupSettingsPage();
   setupResultPage();
   handleHash();
