@@ -1,12 +1,10 @@
 /**
- * Returns true on iPhone, iPad, or iPadOS (desktop Safari with touch).
- * Used to branch away from getUserMedia (which prompts every session on iOS)
- * to a <input type="file" capture> approach instead.
+ * Returns true on any touch-capable device (phones + tablets, iOS and Android).
+ * These devices use the file-input camera path to avoid getUserMedia issues.
+ * Desktop browsers (no touch) get the live viewfinder.
  */
-export function isIOS() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    // iPadOS 13+ reports as macOS — use touch event presence instead of deprecated navigator.platform
-    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+export function isMobile() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
 let stream = null;

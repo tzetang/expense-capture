@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expense-capture-v2';
+const CACHE_NAME = 'expense-capture-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

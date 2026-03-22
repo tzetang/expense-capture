@@ -1,5 +1,5 @@
 import { loadSettings, saveSettings } from './settings.js';
-import { startCamera, stopCamera, captureFrame, isIOS } from './camera.js';
+import { startCamera, stopCamera, captureFrame, isMobile } from './camera.js';
 import {
   loadOpenCV,
   processImage,
@@ -90,15 +90,15 @@ async function initCameraPage() {
   const viewfinder = document.getElementById('camera-viewfinder');
   const controls  = document.querySelector('.camera-controls');
 
-  if (isIOS()) {
-    // Show the tap-to-shoot UI; hide the getUserMedia viewfinder
+  if (isMobile()) {
+    // Touch devices: use file-input native camera (no repeated permission prompts)
     viewfinder.style.display = 'none';
     controls.style.display   = 'none';
     iosUI.hidden = false;
     return;
   }
 
-  // Non-iOS: live viewfinder path
+  // Desktop: live viewfinder path
   iosUI.hidden = true;
   viewfinder.style.display = '';
   controls.style.display   = '';
@@ -137,6 +137,11 @@ function setupCameraPage() {
   document.getElementById('btn-camera-error-back').addEventListener('click', () => showPage('home'));
 
   document.getElementById('btn-shutter').addEventListener('click', async () => {
+    const v = document.getElementById('camera-video');
+    if (!v.videoWidth) {
+      showToast('Camera not ready — go back and try again');
+      return;
+    }
     const blob = await captureFrame();
     if (!blob) return;
     window.appState.capturedBlob = blob;
@@ -410,9 +415,14 @@ window.showToast = showToast;
 
 // ── Service worker ───────────────────────────────────────────────
 function registerSW() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    // Auto-reload once when a new service worker takes over,
+    // so users always run the latest JS without a manual refresh.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  }).catch(() => {});
 }
 
 // ── Offline banner ───────────────────────────────────────────────
