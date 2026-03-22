@@ -1,11 +1,9 @@
-const CACHE_NAME = 'expense-capture-v4';
+const CACHE_NAME = 'expense-capture-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/css/app.css',
   '/js/app.js',
-  '/js/camera.js',
-  '/js/processor.js',
   '/js/settings.js',
   '/js/submitter.js',
   '/manifest.json',
@@ -30,28 +28,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never intercept n8n webhook POSTs
   if (event.request.method !== 'GET') return;
-
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Only cache same-origin GET responses
-        if (
-          response.ok &&
-          event.request.url.startsWith(self.location.origin)
-        ) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
         }
         return response;
       });
-    }).catch(() => {
-      // Offline fallback for navigation requests
-      if (event.request.mode === 'navigate') {
-        return caches.match('/index.html');
-      }
-    })
+    }).catch(() => caches.match('/index.html'))
   );
 });
