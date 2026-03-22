@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Expense Capture</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1a73e8" />
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Expenses" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+<!-- ── Offline banner (shared, always in DOM) ──────────────────── -->
+<div id="offline-banner" class="offline-banner" role="status">
+  You're offline — receipt submission is unavailable until you reconnect.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE: Home                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="page-home" class="page page--active" aria-label="Home">
+  <div class="navbar">
+    <span class="navbar__title">Expense Capture</span>
+    <button id="btn-settings-home" class="icon-btn" aria-label="Settings">
+      <!-- gear icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="page-content">
+    <div id="home-alert" class="alert-banner" hidden>
+      Please <a id="home-alert-link" href="#">configure your webhook URL</a> in Settings before scanning.
+    </div>
+
+    <div class="home-hero">
+      <div class="home-hero__icon">
+        <!-- camera icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <h1>Scan a Receipt</h1>
+      <p>Point your camera at a receipt and we'll process and submit it automatically.</p>
+    </div>
+
+    <button id="btn-scan" class="btn btn--primary">Scan Receipt</button>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE: Camera                                                   -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="page-camera" class="page camera-page" aria-label="Camera">
+  <div class="camera-viewfinder">
+    <video id="camera-video" autoplay playsinline muted></video>
+
+    <div class="camera-navbar">
+      <button id="btn-back-camera" class="icon-btn" aria-label="Back">
+        <!-- chevron-left -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="camera-tip" class="camera-tip">
+      Use natural light and avoid flash for best results
+    </div>
+
+    <!-- Spinner shown while camera initialises -->
+    <div id="camera-spinner" class="spinner-overlay hidden">
+      <div class="spinner"></div>
+      <span>Starting camera…</span>
+    </div>
+
+    <!-- Error state -->
+    <div id="camera-error" class="spinner-overlay hidden" style="background:rgba(0,0,0,.8); gap:20px; padding:32px; text-align:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <p id="camera-error-msg" style="max-width:240px; line-height:1.5;">Camera access was denied. Please allow camera access in your browser settings and try again.</p>
+      <button id="btn-camera-error-back" class="btn btn--secondary" style="width:auto; padding:12px 24px;">Go Back</button>
+    </div>
+  </div>
+
+  <div class="camera-controls">
+    <button id="btn-shutter" class="shutter-btn" aria-label="Take photo"></button>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE: Process                                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="page-process" class="page process-page" aria-label="Process image">
+  <div class="navbar">
+    <button id="btn-back-process" class="icon-btn" aria-label="Retake">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <span class="navbar__title">Adjust &amp; Confirm</span>
+    <div style="width:40px"></div><!-- spacer -->
+  </div>
+
+  <!-- OpenCV loading overlay -->
+  <div id="opencv-spinner" class="spinner-overlay" style="position:fixed; background:rgba(0,0,0,.7);">
+    <div class="spinner"></div>
+    <span>Loading image processor…</span>
+  </div>
+
+  <div class="canvas-container" id="process-canvas-container">
+    <canvas id="canvas-preview"></canvas>
+    <!-- Corner handles injected by processor.js -->
+  </div>
+
+  <div class="page-content" style="padding-top:16px; flex:0;">
+    <p style="font-size:0.85rem; color:var(--grey-600); text-align:center; margin-bottom:16px;">
+      Drag the corner handles to adjust the crop area, then confirm.
+    </p>
+    <button id="btn-apply-corners" class="btn btn--secondary">Re-apply Corners</button>
+    <button id="btn-confirm-process" class="btn btn--primary">Looks Good — Submit</button>
+  </div>
+
+  <!-- Debug previews (shown when debug mode is on) -->
+  <div id="debug-section" class="debug-section" hidden>
+    <h3>Debug: Processing Steps</h3>
+    <div class="debug-previews" id="debug-previews"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE: Settings                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="page-settings" class="page" aria-label="Settings">
+  <div class="navbar">
+    <button id="btn-back-settings" class="icon-btn" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <span class="navbar__title">Settings</span>
+    <div style="width:40px"></div>
+  </div>
+
+  <div class="page-content">
+    <div class="form-group">
+      <label for="input-webhook-url">n8n Webhook URL</label>
+      <input type="url" id="input-webhook-url" placeholder="https://your-n8n.com/webhook/…" autocomplete="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <div class="form-group">
+      <label for="input-api-key">API Key</label>
+      <input type="password" id="input-api-key" placeholder="Your API key" autocomplete="off" />
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-row__label">
+        <span>Debug Mode</span>
+        <span>Show intermediate processing steps</span>
+      </div>
+      <label class="toggle" aria-label="Debug mode">
+        <input type="checkbox" id="toggle-debug" />
+        <span class="toggle__track"></span>
+      </label>
+    </div>
+
+    <div style="margin-top:24px;">
+      <button id="btn-save-settings" class="btn btn--primary">Save Settings</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE: Result                                                   -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="page-result" class="page" aria-label="Result">
+  <div class="navbar">
+    <span class="navbar__title">Result</span>
+  </div>
+
+  <!-- Submission loading overlay -->
+  <div id="submit-spinner" class="spinner-overlay hidden" style="position:fixed; background:rgba(0,0,0,.6);">
+    <div class="spinner"></div>
+    <span>Submitting expense…</span>
+  </div>
+
+  <div class="page-content">
+    <div class="result-hero">
+      <div id="result-icon" class="result-icon"></div>
+      <h2 id="result-title"></h2>
+      <p id="result-message"></p>
+    </div>
+
+    <button id="btn-scan-another" class="btn btn--primary">Scan Another Receipt</button>
+    <button id="btn-retry-submit" class="btn btn--secondary" hidden>Retry</button>
+  </div>
+</section>
+
+<!-- ── Global toast ──────────────────────────────────────────────── -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
