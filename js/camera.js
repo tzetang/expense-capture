@@ -5,7 +5,8 @@
  */
 export function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // iPadOS 13+ reports as macOS — use touch event presence instead of deprecated navigator.platform
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
 }
 
 let stream = null;
