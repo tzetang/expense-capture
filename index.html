@@ -165,7 +165,16 @@
 
     <div class="form-group">
       <label for="input-api-key">API Key</label>
-      <input type="password" id="input-api-key" placeholder="Your API key" autocomplete="off" />
+      <div style="position:relative;">
+        <input type="password" id="input-api-key" placeholder="Your API key" autocomplete="off" style="padding-right:48px;" />
+        <button id="btn-toggle-key" type="button" aria-label="Show/hide API key"
+          style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--grey-600);padding:4px;display:flex;">
+          <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="toggle-row">
