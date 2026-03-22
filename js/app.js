@@ -7,6 +7,7 @@ import {
   setupCornerHandles,
   getHandleCorners,
 } from './processor.js';
+import { submitExpense } from './submitter.js';
 
 // ── App state ────────────────────────────────────────────────────
 window.appState = {
@@ -37,6 +38,7 @@ function showPage(id) {
   // Lifecycle hooks
   if (id === 'camera')   initCameraPage();
   if (id === 'process')  initProcessPage();
+  if (id === 'result')   triggerSubmission();
   if (id === 'settings') initSettingsPage();
 }
 
@@ -296,12 +298,84 @@ function setupSettingsPage() {
 }
 
 // ── Result page ──────────────────────────────────────────────────
+function showResult({ success, title, message }) {
+  const icon      = document.getElementById('result-icon');
+  const titleEl   = document.getElementById('result-title');
+  const msgEl     = document.getElementById('result-message');
+  const retryBtn  = document.getElementById('btn-retry-submit');
+
+  const successSVG = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>`;
+  const errorSVG = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>`;
+
+  icon.className = `result-icon result-icon--${success ? 'success' : 'error'}`;
+  icon.innerHTML = success ? successSVG : errorSVG;
+  titleEl.textContent = title;
+  msgEl.textContent   = message;
+  retryBtn.hidden     = success;
+}
+
+async function triggerSubmission() {
+  if (!navigator.onLine) {
+    showResult({
+      success: false,
+      title: 'You\'re Offline',
+      message: 'Please reconnect to the internet and try again.',
+    });
+    return;
+  }
+
+  const blob = window.appState.processedBlob;
+  if (!blob) { showPage('process'); return; }
+
+  const spinner = document.getElementById('submit-spinner');
+  spinner.classList.remove('hidden');
+
+  const settings = loadSettings();
+  try {
+    const result = await submitExpense(blob, settings);
+    spinner.classList.add('hidden');
+
+    if (result.ok) {
+      showResult({
+        success: true,
+        title: 'Expense Submitted!',
+        message: result.message || 'Your receipt has been sent to n8n successfully.',
+      });
+    } else {
+      showResult({
+        success: false,
+        title: `Submission Failed (${result.status})`,
+        message: result.message || 'The server returned an error. Please try again.',
+      });
+    }
+  } catch (err) {
+    spinner.classList.add('hidden');
+    showResult({
+      success: false,
+      title: 'Network Error',
+      message: err.message || 'Could not reach the webhook. Check your URL and connection.',
+    });
+  }
+}
+
 function setupResultPage() {
   document.getElementById('btn-scan-another').addEventListener('click', () => {
     window.appState.capturedBlob  = null;
     window.appState.processedBlob = null;
     showPage('home');
   });
+
+  document.getElementById('btn-retry-submit').addEventListener('click', triggerSubmission);
 }
 
 // ── Toast ────────────────────────────────────────────────────────
